@@ -6,10 +6,7 @@
 #include <stdbool.h>
 #include "spchk_header.h"
 #define MAX_CONNECTIONS 30
-int main(int argc, char ** argv){
-  puts("Hello");
 
-}
 int accept_connection(int port_number){
   
   struct sockaddr_in server_address;
@@ -32,14 +29,45 @@ int accept_connection(int port_number){
     perror("Failed to connect");
     return -1;
   }
-  if( listen(socket_desc, MAX_CONNECTIONS) < 0 ){
+  if(listen(socket_desc, MAX_CONNECTIONS) < 0 ){
     return -1;
   }
 
   return socket_desc;
 
 }
-void load_dictionary(char * file_name){
-  puts("Nothing here yet!");
+char ** load_dictionary(char * file_name){
+  //puts("Nothing here yet!");
+  char line_holder [1000];
+  char ** dictionary =  NULL;
+  FILE * file_pointer;
+  size_t dict_size = 1000000; //approximate for the number of words
 
+  dictionary = malloc(dict_size * sizeof(char *) );
+  file_pointer = open(file_name, "r");
+  
+  if(dictionary == NULL){
+    perror("Failed to allocate resources");
+    return NULL;
+  }
+  size_t i = 0;
+  while(fgets(line_holder, 1000, file_pointer)){
+    strncpy(dictionary[i], line_holder, strlen(line_holder) -  1);
+    i++;
+
+  }
+
+  dictionary[i] =  NULL;
+  
+  
+
+  return my_dictionary;
+  
+  
+
+}
+int main(int argc, char ** argv){
+  /* int test_connection = accept_connection(9150); //just do some testing for connection
+     printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
+  
 }
