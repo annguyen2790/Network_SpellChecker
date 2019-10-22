@@ -6,7 +6,9 @@
 #include <stdbool.h>
 #include "spchk_header.h"
 #define MAX_CONNECTIONS 30
-
+#define DICTIONARY "dictionary_words.txt"
+#define NUM_WORDS 99712
+#define NUM_LINE 128
 int accept_connection(int port_number){
   
   struct sockaddr_in server_address;
@@ -38,36 +40,38 @@ int accept_connection(int port_number){
 }
 char ** load_dictionary(char * file_name){
   //puts("Nothing here yet!");
-  char line_holder [1000];
-  char ** dictionary =  NULL;
+  char ** dictionary;
+  char line[NUM_LINE];
   FILE * file_pointer;
-  size_t dict_size = 1000000; //approximate for the number of words
-
-  dictionary = malloc(dict_size * sizeof(char *) );
-  file_pointer = open(file_name, "r");
   
-  if(dictionary == NULL){
-    perror("Failed to allocate resources");
+  
+  size_t i = 0;
+  if ((dictionary = malloc(NUM_WORDS * sizeof(char *))) == NULL ){
+    perror("ERROR: UNABLE TO ALLOCATE RESOURCES");
     return NULL;
   }
-  size_t i = 0;
-  while(fgets(line_holder, 1000, file_pointer)){
-    strncpy(dictionary[i], line_holder, strlen(line_holder) -  1);
-    i++;
+  file_pointer = fopen(file_name, "r");
+  while(fgets(line, sizeof(line), file_pointer )){
+    if( (dictionary[i] = malloc(strlen(line) * sizeof(char)  +  1)) == NULL){
+      perror("ERROR LOADING WORDS");
+      return NULL;
+    }
+    strncpy(dictionary[i++], line, strlen(line) - 1);
+
 
   }
-
-  dictionary[i] =  NULL;
-  
-  
-
-  return my_dictionary;
-  
-  
+  dictionary[i] = NULL;
+  return dictionary;
 
 }
 int main(int argc, char ** argv){
   /* int test_connection = accept_connection(9150); //just do some testing for connection
      printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
-  
+  char ** words_test = load_dictionary("dictionary_words.txt");
+  /*for(int i = 0; words_test[i] != '\0'; i++)
+    {
+      printf("\n Element is %s", words_test[i]);
+    }
+  */
+
 }

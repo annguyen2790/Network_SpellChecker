@@ -5,4 +5,4 @@
 #include <unistd.h>
 
 int accept_connection(int port_number);
-void load_dictionary(char * input_file);
+char ** load_dictionary(char * input_file);
