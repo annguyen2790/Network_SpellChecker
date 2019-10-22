@@ -64,6 +64,17 @@ char ** load_dictionary(char * file_name){
   return dictionary;
 
 }
+int checkSpelling(char ** dictionary, char * word){
+  size_t i;
+  for(i = 0; i < NUM_WORDS; i++){
+    if(strcmp(dictionary[i], word) == 0){
+      return 1;
+    }
+
+  }
+  return 0;
+
+}
 int main(int argc, char ** argv){
   /* int test_connection = accept_connection(9150); //just do some testing for connection
      printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
