@@ -75,6 +75,26 @@ int checkSpelling(char ** dictionary, char * word){
   return 0;
 
 }
+void produce_client(clientsQueue * client_queue, int client){
+  //acquire a lock for this thread
+  //run a while loop when number of clients in client queue is greater or equals to the max default queue size
+  //make the process unlocked the mutex lock or wait until fill_check check is signal. Until not_fill is signaled, the thread is suspended 
+  //place the client into client queue/socket
+  //increment the number of client inside the client socket 
+  //unlock the lock for this thread
+
+}
+
+int consume_client(clientsQueue * client_queue){
+  //acquire a lock for this thread
+  //run a while loop when a number of clients in client queue is less or equal than 0
+  //make the process wait until the empty_check is signal. Until empty_check is signaled, the thread will be suspended
+  //consume the client from the end of the  queue
+  //decrement the number of client inside the client socket
+  //unlock the lock for this thread
+  return 0;
+}
+
 int main(int argc, char ** argv){
   /* int test_connection = accept_connection(9150); //just do some testing for connection
      printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor

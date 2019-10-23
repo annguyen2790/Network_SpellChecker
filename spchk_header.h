@@ -4,9 +4,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #define QUEUE_SIZE_DEFAULT 20
-int accept_connection(int port_number);
-char ** load_dictionary(char * input_file);
-
+#define PORT_DEFAULT 8888
+//DATA STRUCTURE
 typedef struct{
   pthread_mutex_t lock;
   pthread_cond_t empty_check;
@@ -24,3 +23,15 @@ typedef struct{
   int log_num;
 
 }logsQueue;
+
+//FUNCTIONS PROTOTYPES
+
+int accept_connection(int port_number);
+char ** load_dictionary(char * input_file);
+void create_threads_pool();
+void *  handle_request(void *);
+void produce_client(clientsQueue * client_queue, int client);
+int consume_client(clientsQueue * client_queue);
+void produce_log(logsQueue * log_queue, char * item);
+int get_log(logsQueue * log_queue);
+
