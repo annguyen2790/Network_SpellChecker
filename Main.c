@@ -9,6 +9,13 @@
 #define DICTIONARY "dictionary_words.txt"
 #define NUM_WORDS 99712
 #define NUM_LINE 128
+//GLOBAL VARIABLES TO USE
+FILE * log_output;
+char ** dictionary;
+
+
+//END OF GLOBAL VARIABLES
+
 int accept_connection(int port_number){
   
   struct sockaddr_in server_address;
@@ -64,7 +71,7 @@ char ** load_dictionary(char * file_name){
   return dictionary;
 
 }
-int checkSpelling(char ** dictionary, char * word){
+int checkSpelling(char * word){
   size_t i;
   for(i = 0; i < NUM_WORDS; i++){
     if(strcmp(dictionary[i], word) == 0){
@@ -85,7 +92,7 @@ void produce_client(clientsQueue * client_queue, int client){
 
 }
 
-int consume_client(clientsQueue * client_queue){
+int get_client(clientsQueue * client_queue){
   //acquire a lock for this thread
   //run a while loop when a number of clients in client queue is less or equal than 0
   //make the process wait until the empty_check is signal. Until empty_check is signaled, the thread will be suspended
@@ -95,6 +102,20 @@ int consume_client(clientsQueue * client_queue){
   return 0;
 }
 
+void produce_log(logsQueue * log_queue, char * log){
+  //acquire a lock for this thread
+  //while number of entries is equals or bigger than default queue size, suspend this thread
+  //copy log file from quuee to file
+  //increment the number of log in the log queue
+  //signal the queue is not empty
+  //unlock the lock
+
+}
+
+char * get_log(logsQueue * log_queue){
+  return NULL;
+
+}
 int main(int argc, char ** argv){
   /* int test_connection = accept_connection(9150); //just do some testing for connection
      printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
