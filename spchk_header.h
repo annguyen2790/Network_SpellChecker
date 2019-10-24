@@ -33,5 +33,5 @@ void *  handle_request(void *);
 void produce_client(clientsQueue * client_queue, int client);
 int get_client(clientsQueue * client_queue);
 void produce_log(logsQueue * log_queue, char * item);
-int get_log(logsQueue * log_queue);
+char *  get_log(logsQueue * log_queue);
 

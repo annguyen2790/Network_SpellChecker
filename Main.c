@@ -12,8 +12,8 @@
 //GLOBAL VARIABLES TO USE
 FILE * log_output;
 char ** dictionary;
-
-
+clientsQueue *  client_q;
+logsQueue * log_q;
 //END OF GLOBAL VARIABLES
 
 int accept_connection(int port_number){
@@ -89,6 +89,18 @@ void produce_client(clientsQueue * client_queue, int client){
   //place the client into client queue/socket
   //increment the number of client inside the client socket 
   //unlock the lock for this thread
+  
+  pthread_mutex_lock(&client_queue->lock);
+  
+  while(client_queue->client_num >= QUEUE_SIZE_DEFAULT){
+    pthread_cond_wait(&client_queue->fill_check, &client_queue->lock);
+    
+  }
+  client_queue->clients_in_socket[client_queue->client_num] = client; // put client in
+  client_queue->client_num = client_queue->client_num + 1; //increment items in the buffer
+  
+  pthread_cond_signal(&client_queue->empty_check); //signal that the buffer is not empty!
+  pthread_mutex_unlock(&client_queue->lock);
 
 }
 
@@ -109,7 +121,21 @@ void produce_log(logsQueue * log_queue, char * log){
   //increment the number of log in the log queue
   //signal the queue is not empty
   //unlock the lock
-
+  pthread_mutex_lock(&log_queue->lock); //lock
+  
+  while(log_queue->log_num >= QUEUE_SIZE_DEFAULT){
+    pthread_cond_wait(&log_queue->fill_check, &log_queue->lock);
+  }
+  
+  strcpy(log_queue->log[log_queue->log_num], log); // copy item from buffer 
+  
+  log_queue->log_num = log_queue->log_num + 1; 
+  
+  pthread_cond_signal(&log_queue->empty_check); //signal that the buffer is not empty
+  
+  pthread_mutex_unlock(&log_queue->lock); //unlock
+  
+  
 }
 
 char * get_log(logsQueue * log_queue){
@@ -119,7 +145,7 @@ char * get_log(logsQueue * log_queue){
 int main(int argc, char ** argv){
   /* int test_connection = accept_connection(9150); //just do some testing for connection
      printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
-  char ** words_test = load_dictionary("dictionary_words.txt");
+  //char ** words_test = load_dictionary("dictionary_words.txt");
   /*for(int i = 0; words_test[i] != '\0'; i++)
     {
       printf("\n Element is %s", words_test[i]);
