@@ -71,6 +71,7 @@ char ** load_dictionary(char * file_name){
   return dictionary;
 
 }
+
 int checkSpelling(char * word){
   size_t i;
   for(i = 0; i < NUM_WORDS; i++){
@@ -111,7 +112,23 @@ int get_client(clientsQueue * client_queue){
   //consume the client from the end of the  queue
   //decrement the number of client inside the client socket
   //unlock the lock for this thread
-  return 0;
+  int client = 0;
+  
+  pthread_mutex_lock(&client_queue->lock);
+  
+  while(client_queue->client_num <= 0 ){
+    pthread_cond_wait(&client_queue->empty_check, &client_queue->lock);
+  }
+  
+  client = client_queue->clients_in_socket[client_queue->client_num - 1];
+  
+  client_queue->client_num  = client_queue->client_num - 1;
+  
+  pthread_cond_signal(&client_queue->fill_check);
+  
+  pthread_mutex_unlock(&client_queue->lock);
+  
+  return client;
 }
 
 void produce_log(logsQueue * log_queue, char * log){
@@ -138,8 +155,22 @@ void produce_log(logsQueue * log_queue, char * log){
   
 }
 
+
 char * get_log(logsQueue * log_queue){
-  return NULL;
+  char * return_log = (char *) malloc(sizeof(char) * 300);
+  pthread_mutex_lock(&log_queue->lock); //acquire lock
+
+  while(log_queue->log_num <= 0 ){ //condition variable: while log queue is empty, suspend threads
+    pthread_cond_wait(&log_queue->empty_check, &log_queue->lock);   
+  }
+  strcpy(return_log, log_queue->log[log_queue->log_num - 1]); //consume log from queue
+  log_queue->log_num = log_queue->log_num - 1;
+  pthread_cond_signal(&log_queue->fill_check);
+
+
+
+  pthread_mutex_unlock(&log_queue->lock);//release lock
+  return return_log;
 
 }
 int main(int argc, char ** argv){
@@ -147,6 +178,7 @@ int main(int argc, char ** argv){
      printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
   //char ** words_test = load_dictionary("dictionary_words.txt");
   /*for(int i = 0; words_test[i] != '\0'; i++)
+
     {
       printf("\n Element is %s", words_test[i]);
     }
