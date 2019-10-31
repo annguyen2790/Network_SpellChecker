@@ -45,7 +45,7 @@ int accept_connection(int port_number){
   return socket_desc;
 
 }
-char ** load_dictionary(char * file_name){
+char ** load_dictionary(char * file_name){ //input file a list of dictionary words ; output an array of words in the dictionary
   //puts("Nothing here yet!");
   char ** dictionary;
   char line[NUM_LINE];
@@ -173,6 +173,79 @@ char * get_log(logsQueue * log_queue){
   return return_log;
 
 }
+void * thread_work(void * vargp){
+  while(1){
+    int check_int;
+    char message[] = "Connected. Enter a word to check spelling\n";
+    char message_received[2000];
+    char word_holder[2000];
+    int client = get_client(client_q);
+    send(client, message, strlen(message), 0);
+    while(1){
+      check_int = recv(client, message_received, 2000, 0);
+      memset(message_received, '\0', 2000);
+      memset(word_holder, '\0', 2000);
+      if(check_int == -1){
+	send(client, "Message not received", strlen("Message not received"), 0);
+	
+      }else{
+	if(message_received[0] == 27){
+	  break;
+
+	}else{
+	  for(int i = 0; i < 2000; i++){
+	    if(message_received[i] == '\r' || message_received[i] == '\n'){
+	      message_received[i] = '\0';
+	      word_holder[i] = '\0';
+	    }
+	    word_holder[i] = message_received[i];
+	  }
+	  strcpy(word_holder, message_received);
+	  if(checkSpelling(word_holder)== 0){
+	    strcat(message_received, "  : Incorrectly spelled\n");
+	    send(client, message_received, strlen(message_received), 0);
+	  }else{
+	    strcat(message_received, "  : Correct\n");
+	    send(client, message_received, strlen(message_received), 0);
+	  }
+	  produce_log(log_q, message_received);
+	}
+
+
+      }
+
+
+      
+
+    }
+
+
+  }
+  return NULL;
+
+
+}
+void * server_log(void * vargp){
+  char * log;
+  while(1){
+    log = get_log(log_q);
+    log_output = fopen("logs_output.txt" , "a+");
+    fprintf(log_output, "%s\n", log);
+    fclose(log_output);
+  }
+}
+void create_threads(){  
+  pthread_t thread_id[MAX_CONNECTIONS];
+  size_t i;
+  for(i = 0 ; i < MAX_CONNECTIONS; i++){
+    pthread_create(&thread_id[i], NULL, thread_work, (void *)&thread_id[i] );   
+  }
+  pthread_t thread_ID;
+  pthread_create(&thread_ID, NULL, server_log, (void *)&thread_ID);
+}
+
+
+
 int main(int argc, char ** argv){
   /* int test_connection = accept_connection(9150); //just do some testing for connection
      printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
@@ -183,5 +256,6 @@ int main(int argc, char ** argv){
       printf("\n Element is %s", words_test[i]);
     }
   */
-
+  //puts("Chwck");
+  
 }
