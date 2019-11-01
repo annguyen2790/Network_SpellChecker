@@ -8,8 +8,8 @@
 //DATA STRUCTURE
 typedef struct{
   pthread_mutex_t lock;
-  pthread_cond_t empty_check;
-  pthread_cond_t fill_check;
+  pthread_cond_t not_empty_check;
+  pthread_cond_t not_fill_check;
   int client_num;
   int clients_in_socket[QUEUE_SIZE_DEFAULT];
 
@@ -17,8 +17,8 @@ typedef struct{
 
 typedef struct{
   pthread_mutex_t lock;
-  pthread_cond_t empty_check;
-  pthread_cond_t fill_check;
+  pthread_cond_t not_empty_check;
+  pthread_cond_t not_fill_check;
   char log [QUEUE_SIZE_DEFAULT][300];
   int log_num;
 
@@ -27,11 +27,12 @@ typedef struct{
 //FUNCTIONS PROTOTYPES
 
 int accept_connection(int port_number);
-char ** load_dictionary(char * input_file);
+void load_dictionary(char * input_file);
 void create_threads_pool();
 void *  handle_request(void *);
 void produce_client(clientsQueue * client_queue, int client);
 int get_client(clientsQueue * client_queue);
 void produce_log(logsQueue * log_queue, char * item);
 char *  get_log(logsQueue * log_queue);
-
+void * thread_work(void *);
+void create_threads();
