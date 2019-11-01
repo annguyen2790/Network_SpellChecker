@@ -3,17 +3,17 @@
 #include <string.h>
 #include <pthread.h>
 #include <netinet/in.h>
-#include <stdbool.h>
 #include "spchk_header.h"
-#define MAX_CONNECTIONS 30
+#define MAX_CONNECTIONS 3
 #define DICTIONARY "dictionary_words.txt"
 #define NUM_WORDS 99712
-#define NUM_LINE 128
+#define NUM_LINE 256
 //GLOBAL VARIABLES TO USE
-FILE * log_output;
+FILE * log_file;
 char ** dictionary;
-clientsQueue *  client_q;
-logsQueue * log_q;
+int dict_size;
+clientsQueue client_q;
+logsQueue  log_q;
 //END OF GLOBAL VARIABLES
 
 int accept_connection(int port_number){
@@ -45,40 +45,64 @@ int accept_connection(int port_number){
   return socket_desc;
 
 }
-char ** load_dictionary(char * file_name){ //input file a list of dictionary words ; output an array of words in the dictionary
-  //puts("Nothing here yet!");
-  char ** dictionary;
-  char line[NUM_LINE];
-  FILE * file_pointer;
+
+void load_dictionary(char * file_name)
+{
+  char file[NUM_LINE];
   
+  strcpy(file, file_name); //copy file name to file to process
   
-  size_t i = 0;
-  if ((dictionary = malloc(NUM_WORDS * sizeof(char *))) == NULL ){
-    perror("ERROR: UNABLE TO ALLOCATE RESOURCES");
-    return NULL;
-  }
-  file_pointer = fopen(file_name, "r");
-  while(fgets(line, sizeof(line), file_pointer )){
-    if( (dictionary[i] = malloc(strlen(line) * sizeof(char)  +  1)) == NULL){
-      perror("ERROR LOADING WORDS");
-      return NULL;
+  FILE *file_pointer = fopen(file, "r");
+  
+  int count = 0;
+  
+  if (file_pointer == NULL)
+    {
+      perror("Unable to allocate resources\n");
     }
-    strncpy(dictionary[i++], line, strlen(line) - 1);
-
-
+  else
+    {
+      char line [NUM_LINE]; //holder for each word each line
+      while (fgets(line, sizeof(line), file_pointer) != NULL )
+	{
+	  count =  count + 1; //each line has one word so increment by one
+	}
+      
+      fclose(file_pointer);
+    }
+  dict_size = count;
+  dictionary = (char **) malloc(count*sizeof(char*));
+  for (int i = 0; i < count; i++) {
+    dictionary[i] = (char*) malloc(256 * sizeof(char));
   }
-  dictionary[i] = NULL;
-  return dictionary;
-
-}
-
-int checkSpelling(char * word){
+  file_pointer = fopen(file, "r");
+  //reset count to zero
+  count = 0;
+  
+  if (file_pointer == NULL){
+      perror("ERROR!");
+  }
+  else{
+      char line[256];
+      while (fgets(line, sizeof(line), file_pointer ) != NULL){
+	  strcpy(dictionary[count],line);
+	  for (int i = 0; i < NUM_LINE; i++) {
+	    if (dictionary[count][i] == '\n') {
+	      dictionary[count][i] = '\0';
+	      break;
+	    }
+	  }
+	  count++;
+	}
+      fclose(file_pointer);
+  }
+} 
+int checkSpelling(char * word){ //check whether a word is in the list of words or not
   size_t i;
-  for(i = 0; i < NUM_WORDS; i++){
+  for(i = 0 ; i < dict_size; i ++){
     if(strcmp(dictionary[i], word) == 0){
       return 1;
     }
-
   }
   return 0;
 
@@ -94,13 +118,13 @@ void produce_client(clientsQueue * client_queue, int client){
   pthread_mutex_lock(&client_queue->lock);
   
   while(client_queue->client_num >= QUEUE_SIZE_DEFAULT){
-    pthread_cond_wait(&client_queue->fill_check, &client_queue->lock);
+    pthread_cond_wait(&client_queue->not_fill_check, &client_queue->lock);
     
   }
   client_queue->clients_in_socket[client_queue->client_num] = client; // put client in
   client_queue->client_num = client_queue->client_num + 1; //increment items in the buffer
   
-  pthread_cond_signal(&client_queue->empty_check); //signal that the buffer is not empty!
+  pthread_cond_signal(&client_queue->not_empty_check); //signal that the buffer is not empty!
   pthread_mutex_unlock(&client_queue->lock);
 
 }
@@ -112,23 +136,23 @@ int get_client(clientsQueue * client_queue){
   //consume the client from the end of the  queue
   //decrement the number of client inside the client socket
   //unlock the lock for this thread
-  int client = 0;
+  int client;
   
   pthread_mutex_lock(&client_queue->lock);
   
   while(client_queue->client_num <= 0 ){
-    pthread_cond_wait(&client_queue->empty_check, &client_queue->lock);
+    pthread_cond_wait(&client_queue->not_empty_check, &client_queue->lock);
   }
   
   client = client_queue->clients_in_socket[client_queue->client_num - 1];
   
   client_queue->client_num  = client_queue->client_num - 1;
   
-  pthread_cond_signal(&client_queue->fill_check);
+  pthread_cond_signal(&client_queue->not_fill_check);
   
   pthread_mutex_unlock(&client_queue->lock);
   
-  return client;
+  return (client);
 }
 
 void produce_log(logsQueue * log_queue, char * log){
@@ -141,14 +165,14 @@ void produce_log(logsQueue * log_queue, char * log){
   pthread_mutex_lock(&log_queue->lock); //lock
   
   while(log_queue->log_num >= QUEUE_SIZE_DEFAULT){
-    pthread_cond_wait(&log_queue->fill_check, &log_queue->lock);
+    pthread_cond_wait(&log_queue->not_fill_check, &log_queue->lock);
   }
   
   strcpy(log_queue->log[log_queue->log_num], log); // copy item from buffer 
   
   log_queue->log_num = log_queue->log_num + 1; 
   
-  pthread_cond_signal(&log_queue->empty_check); //signal that the buffer is not empty
+  pthread_cond_signal(&log_queue->not_empty_check); //signal that the buffer is not empty
   
   pthread_mutex_unlock(&log_queue->lock); //unlock
   
@@ -161,101 +185,157 @@ char * get_log(logsQueue * log_queue){
   pthread_mutex_lock(&log_queue->lock); //acquire lock
 
   while(log_queue->log_num <= 0 ){ //condition variable: while log queue is empty, suspend threads
-    pthread_cond_wait(&log_queue->empty_check, &log_queue->lock);   
+    pthread_cond_wait(&log_queue->not_empty_check, &log_queue->lock);   
   }
   strcpy(return_log, log_queue->log[log_queue->log_num - 1]); //consume log from queue
   log_queue->log_num = log_queue->log_num - 1;
-  pthread_cond_signal(&log_queue->fill_check);
-
+  pthread_cond_signal(&log_queue->not_fill_check);
 
 
   pthread_mutex_unlock(&log_queue->lock);//release lock
   return return_log;
 
 }
-void * thread_work(void * vargp){
-  while(1){
-    int check_int;
-    char message[] = "Connected. Enter a word to check spelling\n";
-    char message_received[2000];
-    char word_holder[2000];
-    int client = get_client(client_q);
-    send(client, message, strlen(message), 0);
+void * thread_work(void * vargp){ //this function handles threads between clients and server
+  while (1) {
+    int byte_check;
+    
+    char message_receive[NUM_LINE];
+    
+    char word_holder[NUM_LINE];
+    
+    int clientSocket = get_client(&client_q);
+    
+    char msg[] = "Connected Successfully. Please enter a word to check its spelling\n"; //when client connect, this message should appear
+    send(clientSocket, msg, strlen(msg), 0);
     while(1){
-      check_int = recv(client, message_received, 2000, 0);
-      memset(message_received, '\0', 2000);
-      memset(word_holder, '\0', 2000);
-      if(check_int == -1){
-	send(client, "Message not received", strlen("Message not received"), 0);
-	
-      }else{
-	if(message_received[0] == 27){
-	  break;
-
-	}else{
-	  for(int i = 0; i < 2000; i++){
-	    if(message_received[i] == '\r' || message_received[i] == '\n'){
-	      message_received[i] = '\0';
-	      word_holder[i] = '\0';
-	    }
-	    word_holder[i] = message_received[i];
-	  }
-	  strcpy(word_holder, message_received);
-	  if(checkSpelling(word_holder)== 0){
-	    strcat(message_received, "  : Incorrectly spelled\n");
-	    send(client, message_received, strlen(message_received), 0);
-	  }else{
-	    strcat(message_received, "  : Correct\n");
-	    send(client, message_received, strlen(message_received), 0);
-	  }
-	  produce_log(log_q, message_received);
-	}
-
-
+      memset(message_receive,'\0',1000);
+      memset(word_holder,'\0',1000);
+      byte_check = recv(clientSocket, message_receive, 1000, 0);
+      if(byte_check == -1){
+	send(clientSocket, "Unable to receive message!", strlen("Unable to receive message!"), 0);
       }
+      else{   
+	if(message_receive[0] == 27){ //when user enter ESC 
+	    send(clientSocket, "Session ended!", strlen("Session ended!"), 0);
+	    close(clientSocket);
+	    break;
+	  }
+	  else{     
+	      for (int i = 0; i < NUM_LINE; i++) {
+		if (message_receive[i] == '\r' || message_receive[i] == '\n') { //when user press "ENTER" and return newline
+		  message_receive[i] = '\0';
+		  word_holder[i] = '\0';
+		  break;
+		}
+		word_holder[i] = message_receive[i]; //copy user input into holder
+	      }
+	      
+	      strcpy(word_holder,message_receive); //make a copy of result
 
+	      if (checkSpelling(word_holder) == 1) { //check and send result to user
+		strcat(message_receive," CORRECT\n");
+		send(clientSocket,message_receive, strlen(message_receive), 0);
+	      }
+	      else {
+		strcat(message_receive," Misspelled\n");
+		send(clientSocket, message_receive, strlen(message_receive), 0);
+	      }
 
-      
+	      produce_log(&log_q, message_receive);//// produces log
+	    }
 
+	}
     }
-
-
   }
   return NULL;
-
-
 }
 void * server_log(void * vargp){
   char * log;
   while(1){
-    log = get_log(log_q);
-    log_output = fopen("logs_output.txt" , "a+");
-    fprintf(log_output, "%s\n", log);
-    fclose(log_output);
+    log = get_log(&log_q);
+    log_file = fopen("logs_output.txt" , "a+");
+    fprintf(log_file, "%s\n", log);
+    fclose(log_file);
   }
 }
 void create_threads(){  
-  pthread_t thread_id[MAX_CONNECTIONS];
-  size_t i;
-  for(i = 0 ; i < MAX_CONNECTIONS; i++){
-    pthread_create(&thread_id[i], NULL, thread_work, (void *)&thread_id[i] );   
+  pthread_t tid[MAX_CONNECTIONS]; //threads for spellcheckinng
+  pthread_t thread_id; //threads for log
+  for (int i = 0; i<MAX_CONNECTIONS; i++) {
+    pthread_create(&tid[i], NULL, thread_work, (void *)&tid[i]);
   }
-  pthread_t thread_ID;
-  pthread_create(&thread_ID, NULL, server_log, (void *)&thread_ID);
+  pthread_create(&thread_id, NULL, server_log, (void *)&thread_id);
 }
 
 
 
 int main(int argc, char ** argv){
-  /* int test_connection = accept_connection(9150); //just do some testing for connection
-     printf("%d\n", test_connection); */ //if it return any postive int --> success in creating a socket descriptor
-  //char ** words_test = load_dictionary("dictionary_words.txt");
-  /*for(int i = 0; words_test[i] != '\0'; i++)
-
+  //
+  struct sockaddr_in Client;
+  int client_length = sizeof(Client);
+  int socket_connection;
+  int socket_client;
+  const char * scan;
+  //
+  int port = PORT_DEFAULT;
+  if(argc == 1) //if only run the command with no argument of .txt or port number, load the default
     {
-      printf("\n Element is %s", words_test[i]);
+      load_dictionary(DICTIONARY);
+      port = PORT_DEFAULT;
     }
-  */
-  //puts("Chwck");
+  else
+    {
+      
+      if(argc == 2) //if there are two parameters for the command 
+	{
+	  scan = strrchr(argv[1], '.');
+	  if(!scan)
+	    {
+	      load_dictionary(DICTIONARY);
+	      port = atoi(argv[1]);
+	    }
+	  else
+	    {
+	      load_dictionary(DICTIONARY);
+	      port = PORT_DEFAULT;
+	    }
+	}
+      else //if there are three paramters 
+	{
+	  scan = strrchr(argv[1], '.');
+	  if(!scan)
+	    {
+	      load_dictionary(DICTIONARY);
+	    
+	      port = atoi(argv[1]);
+	    }
+	  else
+	    {
+	      load_dictionary(DICTIONARY);
+	      port = atoi(argv[2]);
+	    }
+	}
+    }
+
   
+  //There is no port  below 1024 and ports above 65535 .
+  if(port > 65535 || port < 1024){
+    perror("No such port exists");
+    return -1;
+  }
+
+  //connecting to the port and getting socket descritor
+  socket_connection = accept_connection(port);
+
+  if(socket_connection == -1){
+    perror("Unable to connect to this port");
+    return -1;
+  }
+  puts("Succesfully Establish Connections between Sockets");
+
+  create_threads();
+
+  printf("PORT IN SESSION:  %d", port);
+  return 0;
 }
