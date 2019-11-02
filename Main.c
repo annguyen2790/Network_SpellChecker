@@ -70,7 +70,7 @@ void load_dictionary(char * file_name)
       
       fclose(file_pointer);
     }
-  dict_size = count;
+  dict_size = count; //check how many words are there
   dictionary = (char **) malloc(count*sizeof(char*));
   for (int i = 0; i < count; i++) {
     dictionary[i] = (char*) malloc(256 * sizeof(char));
@@ -250,7 +250,7 @@ void * thread_work(void * vargp){ //this function handles threads between client
   }
   return NULL;
 }
-void * server_log(void * vargp){
+void * server_log(void * vargp){ //threads for log 
   char * log;
   while(1){
     log = get_log(&log_q);
@@ -324,8 +324,7 @@ int main(int argc, char ** argv){
     perror("No such port exists");
     return -1;
   }
-
-  //connecting to the port and getting socket descritor
+  //starting server and accepting connections
   socket_connection = accept_connection(port);
 
   if(socket_connection == -1){
@@ -337,5 +336,23 @@ int main(int argc, char ** argv){
   create_threads();
 
   printf("PORT IN SESSION:  %d", port);
+  fflush(stdout);
+  printf("\n");
+  // listen for input from client
+  while(1) {
+    socket_client = accept(socket_connection, (struct sockaddr*)&Client, &client_length);
+    if(socket_client == -1){
+      perror("Cannot connect to client");
+      return -1;
+    }
+    //display localhost machine number
+    printf("Accepted connection from telnet host number: %d\n", socket_client);
+    fflush(stdout);
+    printf("Handling Threads\n");
+    fflush(stdout);
+    //create client
+    produce_client(&client_q, socket_client);
+  }
+
   return 0;
 }
