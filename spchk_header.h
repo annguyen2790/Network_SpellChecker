@@ -28,8 +28,6 @@ typedef struct{
 
 int accept_connection(int port_number);
 void load_dictionary(char * input_file);
-void create_threads_pool();
-void *  handle_request(void *);
 void produce_client(clientsQueue * client_queue, int client);
 int get_client(clientsQueue * client_queue);
 void produce_log(logsQueue * log_queue, char * item);
