@@ -206,12 +206,16 @@ void * thread_work(void * vargp){ //this function handles threads between client
     
     int clientSocket = get_client(&client_q);
     
-    char msg[] = "Connected Successfully. Please enter a word to check its spelling\n"; //when client connect, this message should appear
-    send(clientSocket, msg, strlen(msg), 0);
+    char message_to_client[] = "Connected Successfully. Please enter a word to check its spelling\n"; //when client connect, this message should appear
+    send(clientSocket, message_to_client, strlen(message_to_client), 0);
     while(1){
+      
+      memset(word_holder,'\0',1000); //set the first 1000 characters to NULL
+
       memset(message_receive,'\0',1000);
-      memset(word_holder,'\0',1000);
+      
       byte_check = recv(clientSocket, message_receive, 1000, 0);
+      
       if(byte_check == -1){
 	send(clientSocket, "Unable to receive message!", strlen("Unable to receive message!"), 0);
       }
@@ -271,14 +275,14 @@ void create_threads(){
 
 
 int main(int argc, char ** argv){
-  //
+  //Data Structures for clients
   struct sockaddr_in Client;
   int client_length = sizeof(Client);
   int socket_connection;
   int socket_client;
   const char * scan;
-  //
   int port = PORT_DEFAULT;
+  //Check arguments
   if(argc == 1) //if only run the command with no argument of .txt or port number, load the default
     {
       load_dictionary(DICTIONARY);
